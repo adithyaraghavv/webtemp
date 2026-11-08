@@ -8,11 +8,12 @@ from pathlib import Path
 from . import __version__
 from .assets import command_md
 from .frames import extract
-from .site import build, validate
+from .lint import lint_dir, report
+from .site import PRESETS, build, validate
 
 EXAMPLE = {
     "name": "Cafe Example", "tagline": "Slow coffee. Fast Wi-Fi.", "lang": "en", "currency": "Rs ",
-    "theme": {"bg": "#0e0c0b", "fg": "#f4efe9", "accent": "#d7263d", "heading_font": "Playfair Display", "body_font": "Inter"},
+    "theme": {"preset": "paper"},
     "hero": {"frames": 120, "dir": "frames/", "ext": ".jpg", "pad": 4, "poster": "poster.jpg"},
     "about_title": "Our story", "about": "Two sentences about the place, in the owner's own words.",
     "menu": [{"category": "Coffee", "items": [{"name": "Filter coffee", "desc": "South Indian style", "price": "90", "image": "img/filter.jpg"}]}],
@@ -36,6 +37,9 @@ def main(argv=None) -> int:
     b.add_argument("brief")
     b.add_argument("--out", default="site")
     sub.add_parser("example", help="print an example brief.json")
+    ln = sub.add_parser("lint", help="design and quality checks on a built site folder")
+    ln.add_argument("site", nargs="?", default="site")
+    sub.add_parser("presets", help="list design presets")
     c = sub.add_parser("check", help="validate a brief")
     c.add_argument("brief")
     s = sub.add_parser("setup", help="install the /webbuild command for Claude Code")
@@ -46,6 +50,12 @@ def main(argv=None) -> int:
     try:
         if a.cmd == "example":
             print(json.dumps(EXAMPLE, indent=2))
+        elif a.cmd == "presets":
+            print("\n".join(PRESETS))
+        elif a.cmd == "lint":
+            issues = lint_dir(a.site)
+            print(report(issues))
+            return 1 if any(i.grade == "FAIL" for i in issues) else 0
         elif a.cmd == "check":
             errs = validate(json.loads(Path(a.brief).read_text()))
             print("\n".join(errs) if errs else "brief OK")

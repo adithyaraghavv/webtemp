@@ -62,6 +62,42 @@ class FrameCountTests(unittest.TestCase):
             self.assertIn("var n=0,", (Path(d) / "s" / "index.html").read_text())
 
 
+class LintTests(unittest.TestCase):
+    def test_every_preset_passes_its_own_linter(self):
+        from webbuild.lint import lint_html
+        from webbuild.site import PRESETS
+        for name in PRESETS:
+            fails = [i for i in lint_html(render({**EXAMPLE, "theme": {"preset": name}})) if i.grade == "FAIL"]
+            self.assertEqual(fails, [], name)
+
+    def test_linter_catches_common_tells(self):
+        from webbuild.lint import lint_html
+        bad = """<html><head><title>x</title><style>body{color:#fff;background:#000;font-family:Inter}
+        .a{transition:all .3s;background:linear-gradient(#7c3aed,#2563eb)}</style></head>
+        <body><h1>Elevate your experience</h1><p>seamless \U0001F680</p><img src=a.jpg><canvas></canvas></body></html>"""
+        rules = {i.rule for i in lint_html(bad)}
+        for r in ("html-lang", "viewport", "img-alt", "canvas-a11y", "tokens-color", "tokens-font", "pure-bw",
+                  "transition-all", "focus", "overflow-x", "purple-blue", "filler-copy", "emoji"):
+            self.assertIn(r, rules, r)
+
+    def test_contrast_failure_detected(self):
+        from webbuild.lint import lint_html
+        h = render({**EXAMPLE, "theme": {"preset": "paper", "muted": "#cfc6b6"}})
+        self.assertIn("contrast", {i.rule for i in lint_html(h)})
+
+    def test_bad_preset_rejected(self):
+        self.assertTrue(validate({"name": "x", "theme": {"preset": "nope"}}))
+
+    def test_cli_lint(self):
+        with tempfile.TemporaryDirectory() as d:
+            b = Path(d) / "b.json"
+            b.write_text(json.dumps(EXAMPLE))
+            main(["build", str(b), "--out", str(Path(d) / "s")])
+            self.assertEqual(main(["lint", str(Path(d) / "s")]), 0)
+            (Path(d) / "s" / "index.html").write_text("<html></html>")
+            self.assertEqual(main(["lint", str(Path(d) / "s")]), 1)
+
+
 class FramesTests(unittest.TestCase):
     def test_extract(self):
         with tempfile.TemporaryDirectory() as d:

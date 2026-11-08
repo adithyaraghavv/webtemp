@@ -6,12 +6,43 @@ import json
 import re
 from pathlib import Path
 
-DEFAULT_THEME = {"bg": "#0e0c0b", "fg": "#f4efe9", "accent": "#d7263d", "muted": "#a89f96",
-                 "card": "#1a1715", "heading_font": "Playfair Display", "body_font": "Inter"}
+PRESETS = {
+    # Each preset is a different material: palette, type pairing, corner shape, borders.
+    "ember": {"bg": "#100d0c", "fg": "#f3ece4", "muted": "#b3a89d", "card": "#1b1715", "accent": "#e0475a",
+              "on_accent": "#1a0a0c", "line": "#3a312c", "scrim": "#0b0908", "hero_fg": "#f7f1ea",
+              "heading_font": "Fraunces", "body_font": "DM Sans", "heading_axis": ":opsz,wght@9..144,600;9..144,700",
+              "radius": "14px", "btn_radius": "999px", "bw": "0px"},
+    "paper": {"bg": "#f4ede0", "fg": "#231c16", "muted": "#5e5348", "card": "#fbf6ec", "accent": "#a8431f",
+              "on_accent": "#fdf6ea", "line": "#cdbfa6", "scrim": "#1c1612", "hero_fg": "#f8f1e6",
+              "heading_font": "Newsreader", "body_font": "Work Sans", "heading_axis": ":opsz,wght@6..72,500;6..72,700",
+              "radius": "2px", "btn_radius": "2px", "bw": "1px"},
+    "street": {"bg": "#f2c230", "fg": "#14110f", "muted": "#3d3426", "card": "#fff1b8", "accent": "#b3142b",
+               "on_accent": "#fff4e0", "line": "#14110f", "scrim": "#14110f", "hero_fg": "#fff4d6",
+               "heading_font": "Archivo Black", "body_font": "Work Sans", "heading_axis": "",
+               "radius": "0px", "btn_radius": "0px", "bw": "3px"},
+    "quiet": {"bg": "#e9eee8", "fg": "#1d2a24", "muted": "#4d5d54", "card": "#f4f7f3", "accent": "#2f6b52",
+              "on_accent": "#f2f7f3", "line": "#c0cec4", "scrim": "#14201a", "hero_fg": "#eef3ee",
+              "heading_font": "Cormorant Garamond", "body_font": "Jost", "heading_axis": ":wght@500;700",
+              "radius": "18px", "btn_radius": "999px", "bw": "0px"},
+    "diner": {"bg": "#f6e9cf", "fg": "#2a1d17", "muted": "#5f4a3c", "card": "#fff6df", "accent": "#0f6f78",
+              "on_accent": "#f6efe0", "line": "#2a1d17", "scrim": "#1f1612", "hero_fg": "#fbf0d8",
+              "heading_font": "Bricolage Grotesque", "body_font": "Manrope", "heading_axis": ":wght@600;800",
+              "radius": "10px", "btn_radius": "8px", "bw": "2px"},
+}
+DEFAULT_THEME = PRESETS["ember"]
+COLOR_KEYS = ("bg", "fg", "muted", "card", "accent", "on_accent", "line", "scrim", "hero_fg")
+SIZE = re.compile(r"^\d{1,3}px$")
+AXIS = re.compile(r"^(:[A-Za-z0-9@;,.]+)?$")
 
 REQUIRED = ("name",)
 HEX = re.compile(r"^#[0-9a-fA-F]{3,8}$")
 FONT = re.compile(r"^[A-Za-z0-9 ]{1,40}$")
+
+
+def theme_of(brief: dict) -> dict:
+    t = dict(brief.get("theme") or {})
+    base = PRESETS.get(t.pop("preset", "ember"))
+    return {**(base or DEFAULT_THEME), **t}
 
 
 def e(v) -> str:
@@ -20,11 +51,18 @@ def e(v) -> str:
 
 def validate(brief: dict) -> list[str]:
     errs = [f"missing required field: {k}" for k in REQUIRED if not brief.get(k)]
-    for k, v in {**DEFAULT_THEME, **brief.get("theme", {})}.items():
-        if k in ("bg", "fg", "accent", "muted", "card") and not HEX.match(str(v)):
+    raw = brief.get("theme") or {}
+    if "preset" in raw and raw["preset"] not in PRESETS:
+        errs.append(f"theme.preset must be one of: {', '.join(PRESETS)}")
+    for k, v in theme_of(brief).items():
+        if k in COLOR_KEYS and not HEX.match(str(v)):
             errs.append(f"theme.{k} must be a hex colour like #112233")
-        if k.endswith("_font") and not FONT.match(str(v)):
+        elif k.endswith("_font") and not FONT.match(str(v)):
             errs.append(f"theme.{k} may only contain letters, numbers and spaces")
+        elif k in ("radius", "btn_radius", "bw") and not SIZE.match(str(v)):
+            errs.append(f"theme.{k} must look like 12px")
+        elif k == "heading_axis" and not AXIS.match(str(v)):
+            errs.append("theme.heading_axis has invalid characters")
     for k in ("phone", "whatsapp"):
         v = brief.get(k)
         if v and not re.match(r"^\+?[0-9 \-]{6,20}$", str(v)):
@@ -81,32 +119,43 @@ def _visit(brief: dict) -> str:
 
 
 CSS = """
-:root{--bg:%(bg)s;--fg:%(fg)s;--accent:%(accent)s;--muted:%(muted)s;--card:%(card)s}
-*{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--fg);font-family:'%(body_font)s',system-ui,sans-serif;line-height:1.6}
-h1,h2,h3{font-family:'%(heading_font)s',Georgia,serif;line-height:1.15}
-nav{position:fixed;inset:0 0 auto 0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:linear-gradient(#000a,#0000)}
-nav b{font-family:'%(heading_font)s',serif;font-size:1.15rem}nav a{color:var(--fg);text-decoration:none;margin-left:16px;font-size:.9rem}
-.btn{display:inline-block;background:var(--accent);color:#fff;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;margin:6px 8px 6px 0}
-.btn.ghost{background:transparent;border:1px solid var(--muted);color:var(--fg)}
-#hero{position:relative;height:%(hero_vh)svh}
-#stage{position:sticky;top:0;height:100svh;overflow:hidden;background:#000}
+:root{--bg:%(bg)s;--fg:%(fg)s;--accent:%(accent)s;--muted:%(muted)s;--card:%(card)s;--on-accent:%(on_accent)s;
+--line:%(line)s;--scrim:%(scrim)s;--hero-fg:%(hero_fg)s;--radius:%(radius)s;--btn-radius:%(btn_radius)s;--bw:%(bw)s;
+--font-head:'%(heading_font)s',Georgia,serif;--font-body:'%(body_font)s',system-ui,sans-serif}
+*{box-sizing:border-box;margin:0}html{scroll-behavior:smooth;overflow-x:clip}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);line-height:1.6;overflow-x:clip}
+h1,h2,h3{font-family:var(--font-head);line-height:1.12;text-wrap:balance}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+nav :focus-visible,.hero-copy :focus-visible{outline-color:var(--hero-fg)}
+nav{position:fixed;inset:0 0 auto 0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:12px 20px;
+background:color-mix(in srgb,var(--scrim) 88%%,transparent);color:var(--hero-fg)}
+nav b{font-family:var(--font-head);font-size:1.15rem}nav a{color:var(--hero-fg);text-decoration:none;margin-left:16px;font-size:.9rem}
+nav a:hover{text-decoration:underline}
+.btn{display:inline-block;background:var(--accent);color:var(--on-accent);padding:12px 24px;border-radius:var(--btn-radius);
+text-decoration:none;font-weight:600;margin:8px 8px 8px 0;transition:transform .15s ease,opacity .15s ease}
+.btn:hover{opacity:.9}.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;border:2px solid var(--line);color:var(--fg)}
+#hero{position:relative;height:%(hero_vh)ssvh}
+#stage{position:sticky;top:0;height:100svh;overflow:hidden;background:var(--scrim)}
 #stage canvas,#stage img.poster{position:absolute;inset:0;width:100%%;height:100%%;object-fit:cover}
-#stage:after{content:"";position:absolute;inset:0;background:linear-gradient(#0008,#0003 40%%,#000a)}
-.hero-copy{position:absolute;z-index:2;left:0;right:0;bottom:12svh;padding:0 24px;max-width:900px}
-.hero-copy h1{font-size:clamp(2.4rem,9vw,5.5rem)}.hero-copy p{color:#e9e2da;font-size:clamp(1rem,2.6vw,1.35rem);margin:12px 0 18px}
-.sec{padding:84px 22px;max-width:1100px;margin:auto}.sec h2{font-size:clamp(1.8rem,5vw,3rem);margin-bottom:26px}
-.sec h3{margin:34px 0 14px;color:var(--accent);font-size:1.3rem}.about{font-size:1.15rem;color:var(--muted);max-width:720px}
-.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
-.card{background:var(--card);border-radius:16px;overflow:hidden}.card img{width:100%%;aspect-ratio:4/3;object-fit:cover;display:block}
-.cb{padding:14px 16px}.row{display:flex;justify-content:space-between;gap:10px}.row h4{font-size:1.02rem}.price{color:var(--accent);font-weight:700}
+#stage:after{content:"";position:absolute;inset:0;background:linear-gradient(color-mix(in srgb,var(--scrim) 55%%,transparent),color-mix(in srgb,var(--scrim) 15%%,transparent) 40%%,color-mix(in srgb,var(--scrim) 72%%,transparent))}
+.hero-copy{position:absolute;z-index:2;left:0;right:0;bottom:12svh;padding:0 24px;max-width:900px;color:var(--hero-fg)}
+.hero-copy h1{font-size:clamp(2.4rem,9vw,5.5rem)}.hero-copy p{font-size:clamp(1rem,2.6vw,1.35rem);margin:12px 0 20px;max-width:34em}
+.hero-copy .btn:hover{opacity:.9}
+.sec{padding:80px 24px;max-width:1100px;margin:auto}.sec h2{font-size:clamp(1.8rem,5vw,3rem);margin-bottom:24px}
+.sec h3{margin:32px 0 16px;color:var(--accent);font-size:1.3rem}.about{font-size:1.15rem;color:var(--muted);max-width:720px}
+.grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.card{background:var(--card);border-radius:var(--radius);overflow:hidden;border:var(--bw) solid var(--line)}
+.card img{width:100%%;aspect-ratio:4/3;object-fit:cover;display:block}
+.cb{padding:16px}.row{display:flex;justify-content:space-between;gap:8px}.row h4{font-size:1.02rem}.price{color:var(--accent);font-weight:700}
 .card p{color:var(--muted);font-size:.9rem;margin-top:4px}
-.gal{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}.gal img{width:100%%;aspect-ratio:1;object-fit:cover;border-radius:12px}
-.visit{display:grid;gap:26px}.addr{font-size:1.2rem}.hours{list-style:none;padding:0;margin-top:14px;color:var(--muted)}
-.hours li{display:flex;justify-content:space-between;max-width:360px;padding:6px 0;border-bottom:1px solid #fff2}
-footer{padding:30px 22px;text-align:center;color:var(--muted);font-size:.85rem}
+.gal{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}.gal img{width:100%%;aspect-ratio:1;object-fit:cover;border-radius:var(--radius)}
+.visit{display:grid;gap:24px}.addr{font-size:1.2rem}.hours{list-style:none;padding:0;margin-top:16px;color:var(--muted)}
+.hours li{display:flex;justify-content:space-between;max-width:360px;padding:8px 0;border-bottom:1px solid var(--line)}
+footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:.85rem}
 @media(min-width:760px){.visit{grid-template-columns:1fr 1fr;align-items:center}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}#hero{height:100svh}}
 """
 
 JS = """
@@ -137,7 +186,7 @@ def render(brief: dict) -> str:
     errs = validate(brief)
     if errs:
         raise ValueError("; ".join(errs))
-    t = {**DEFAULT_THEME, **brief.get("theme", {})}
+    t = theme_of(brief)
     hero = brief.get("hero") or {}
     count = int(hero.get("frames", 0) or 0)
     frames_dir = hero.get("dir", "frames/")
@@ -147,7 +196,8 @@ def render(brief: dict) -> str:
     css = CSS % {**t, "hero_vh": 100 + min(max(count, 0), 240) * 3 if count else 100}
     js = JS % {"count": count, "dir": json.dumps(frames_dir), "ext": json.dumps(ext), "pad": int(hero.get("pad", 4))}
     poster = f'<img class="poster" src="{e(hero["poster"])}" alt="">' if hero.get("poster") else ""
-    fonts = "family=" + t["heading_font"].replace(" ", "+") + ":wght@600;700&family=" + t["body_font"].replace(" ", "+") + ":wght@400;600"
+    fonts = ("family=" + t["heading_font"].replace(" ", "+") + t["heading_axis"] +
+             "&family=" + t["body_font"].replace(" ", "+") + ":wght@400;600")
     nav = "".join(f'<a href="#{i}">{l}</a>' for i, l, k in
                   (("menu", "Menu", "menu"), ("gallery", "Gallery", "gallery"), ("visit", "Visit", "x")) if k == "x" or brief.get(k))
     cta = (f'<a class="btn" href="#visit">{e(brief.get("cta_label", "Find us"))}</a>')
@@ -163,7 +213,7 @@ def render(brief: dict) -> str:
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?{fonts}&display=swap" rel="stylesheet">
 <style>{css}</style></head><body>
 <nav><b>{e(brief['name'])}</b><div>{nav}</div></nav>
-<header id="hero"><div id="stage">{poster}<canvas id="cv"></canvas>
+<header id="hero"><div id="stage">{poster}<canvas id="cv" aria-hidden="true"></canvas>
 <div class="hero-copy"><h1>{e(brief['name'])}</h1><p>{e(brief.get('tagline', ''))}</p>{cta}</div></div></header>
 {about}{_menu(brief)}{_gallery(brief)}{_visit(brief)}
 <footer>&copy; {e(brief['name'])}</footer>

@@ -15,10 +15,20 @@ Add this to the setup script of your Claude Code cloud environment (after the gu
 3. It writes `brief.json`, extracts frames, builds `site/`, screenshots it on phone and desktop, fixes issues.
 4. Deploy: drag `site/` into Netlify.
 
+## Design layer (our own, original code)
+Five presets (`webbuild presets`): ember, paper, street, quiet, diner. Each is a different material
+(palette, type pairing, corner shape, borders). `webbuild lint site` fails the build on common
+machine-made tells: colours outside tokens, pure black/white, missing focus styles, no reduced-motion
+fallback, purple-blue gradients, emoji icons, low contrast (WCAG), missing alt text, filler copy,
+invented "trusted by" claims. Idea credit: the anti-AI-slop approach popularised by Hallmark (MIT);
+none of its code or text is used here.
+
 ## Commands
 - `webbuild example` prints a full example brief
 - `webbuild check brief.json` validates it
 - `webbuild frames video.mp4 --out site/frames --count 120` needs ffmpeg
+- `webbuild lint site` design and quality checks (exit 1 on any FAIL)
+- `webbuild presets` lists presets
 - `webbuild build brief.json --out site` writes `site/index.html` (counts the real frames itself)
 
 Standard library only. Output is plain HTML, CSS and JS with no build step. All text from the

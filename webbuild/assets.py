@@ -23,6 +23,17 @@ one go. Accept "skip" or "you decide" for anything optional. Do not guess facts.
 Never invent prices, hours, addresses, awards or reviews. If something is missing, leave it out
 or mark it clearly as a placeholder in my summary.
 
+Design direction (do this before writing the brief; it is what stops the site looking machine-made):
+- Ask for 1 or 2 sites I like. Name what makes them work (grid, type scale, photo style, motion) and use
+  the principles, never copy them.
+- Pick ONE preset from `webbuild presets` (ember, paper, street, quiet, diner) that fits this business's
+  mood and neighbourhood, and say why in one line. Override colours or fonts only with a reason.
+- Real media comes first. If I gave no real photos or video, say so and ask before building. Never use
+  stock-looking filler, emoji as icons, or purple-blue gradients.
+- Write copy in the owner's voice: short, plain, specific (a street, a dish, a year, a name). Never use
+  filler like "elevate your experience", "seamless", "crafted with passion", "world-class".
+- Never invent customer counts, awards, reviews or "trusted by" claims.
+
 Step 2: write `brief.json` (see `webbuild example` for every field), then show me a 6-line summary
 of what you will build and what is missing. Continue unless I object.
 
@@ -38,7 +49,11 @@ Step 3: build.
    business, strong first screen on a phone. Edit `brief.json` or the generated HTML, but keep the
    result a plain static site that needs no build step.
 
-Step 4: quality gate (loop, max 3 rounds). Fix what you find, then re-check:
+Step 4: quality gate (loop, max 3 rounds). Run `webbuild lint site`. Fix every FAIL at the cause in
+`brief.json` or the HTML. Never hide a FAIL by weakening the linter. Fix or explain every WARN. Then re-run.
+Then do a design critique on the screenshots: what is the one memorable thing on the first screen?
+Does anything look like a template? Would a person believe a designer made this? Fix what is weak.
+Also check:
 - Lighthouse-style basics: page title, meta description, alt text, tap targets, contrast
 - Total page weight under 12 MB; no single image over 400 KB unless it is the hero frames
 - Works without JavaScript (poster and content still visible) and with reduced motion
