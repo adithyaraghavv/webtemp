@@ -1,0 +1,54 @@
+"""The /webbuild command text installed into Claude Code."""
+from __future__ import annotations
+
+COMMAND_MD = """---
+description: Interview me about a business, then build a premium, ready-to-deploy website from my templates
+---
+
+Build a website with webbuild. Do not start building until the brief is complete.
+
+Setup (skip what is done):
+1. Run `webbuild --version`. If it is missing, install it from my repo `{repo}` (public):
+   `pip install git+https://github.com/{repo}.git` (add `--break-system-packages` if pip refuses).
+2. Work in a new folder for this site (ask me for the name if I did not give one).
+
+Step 1: intake. Ask me for everything below in ONE message, as a short list, and let me answer in
+one go. Accept "skip" or "you decide" for anything optional. Do not guess facts.
+- Business name, what it is (cafe, salon, clinic, gym, startup, portfolio...), city, language
+- One-line tagline and who the customers are
+- Look and feel: mood words, colours or a reference site, dark or light
+- Real content: about text, menu or services with prices, opening hours, address, phone, WhatsApp, map link
+- Media: a hero video (best: 10 to 25 seconds, filmed on a phone, steady) and photos, with permission to use them
+- The one action visitors should take (call, book, order, directions, join waitlist)
+Never invent prices, hours, addresses, awards or reviews. If something is missing, leave it out
+or mark it clearly as a placeholder in my summary.
+
+Step 2: write `brief.json` (see `webbuild example` for every field), then show me a 6-line summary
+of what you will build and what is missing. Continue unless I object.
+
+Step 3: build.
+1. If I gave a video: `webbuild frames VIDEO --out site/frames --count 120` (use 60 if the site is mostly
+   for phones on slow data). Put the best still as `site/poster.jpg` and set `hero.poster` in the brief.
+2. Copy photos into `site/img/` and compress them (max 1600px wide) before using them.
+3. `webbuild build brief.json --out site`
+4. Open `site/index.html` through a local server, take screenshots at 390px and 1280px wide with
+   Playwright, and look at them. Check: text readable over the hero, buttons work, nothing overflows
+   sideways, images load, scroll animation plays forward and back.
+5. Improve the copy and the design honestly: sharper headline, real section order for this kind of
+   business, strong first screen on a phone. Edit `brief.json` or the generated HTML, but keep the
+   result a plain static site that needs no build step.
+
+Step 4: quality gate (loop, max 3 rounds). Fix what you find, then re-check:
+- Lighthouse-style basics: page title, meta description, alt text, tap targets, contrast
+- Total page weight under 12 MB; no single image over 400 KB unless it is the hero frames
+- Works without JavaScript (poster and content still visible) and with reduced motion
+- No broken links; phone and WhatsApp links are correct
+
+Step 5: finish. Tell me in plain English what you built, what is placeholder, what I must confirm
+with the client, and how to deploy (drag the `site` folder into Netlify, or `netlify deploy --dir site`).
+Do not deploy or publish anything unless I ask.
+"""
+
+
+def command_md(repo: str = "adithyaraghavv/webbuild") -> str:
+    return COMMAND_MD.replace("{repo}", repo)
