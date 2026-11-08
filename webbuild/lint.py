@@ -162,7 +162,20 @@ def lint_dir(site_dir: str) -> list[Issue]:
     idx = root / "index.html"
     if not idx.exists():
         return [Issue("FAIL", "no-index", f"{idx} not found")]
-    out += lint_html(idx.read_text())
+    page = idx.read_text()
+    out += lint_html(page)
+    # every local file the page points to must exist next to index.html
+    refs = set(re.findall(r'(?:src|href)="([^"#?:]+?\.(?:jpg|jpeg|png|webp|gif|svg|mp4|webm|css|js|ico))"', page, re.I))
+    for r in sorted(refs):
+        if not (root / r).exists():
+            out.append(Issue("FAIL", "missing-file", f"page references {r} but it is not in {root}",
+                             "copy it next to index.html, or fix the path in brief.json"))
+    m = re.search(r"var n=(\d+),dir=\"([^\"]*)\",ext=\"([^\"]*)\"", page)
+    if m and int(m.group(1)) > 0:
+        d = root / m.group(2)
+        have = len(list(d.glob("*" + m.group(3)))) if d.is_dir() else 0
+        if have < int(m.group(1)):
+            out.append(Issue("FAIL", "missing-frames", f"hero expects {m.group(1)} frames in {m.group(2)}, found {have}"))
     total = 0
     for f in root.rglob("*"):
         if f.is_file():

@@ -93,9 +93,30 @@ class LintTests(unittest.TestCase):
             b = Path(d) / "b.json"
             b.write_text(json.dumps(EXAMPLE))
             main(["build", str(b), "--out", str(Path(d) / "s")])
+            (Path(d) / "s" / "img").mkdir()
+            for f in ("img/filter.jpg", "img/1.jpg", "img/2.jpg", "poster.jpg"):
+                (Path(d) / "s" / f).write_bytes(b"x")
+            (Path(d) / "s" / "frames").mkdir()
             self.assertEqual(main(["lint", str(Path(d) / "s")]), 0)
             (Path(d) / "s" / "index.html").write_text("<html></html>")
             self.assertEqual(main(["lint", str(Path(d) / "s")]), 1)
+
+
+class MissingFileTests(unittest.TestCase):
+    def test_missing_images_and_frames_fail(self):
+        with tempfile.TemporaryDirectory() as d:
+            b = Path(d) / "b.json"
+            b.write_text(json.dumps(EXAMPLE))
+            main(["build", str(b), "--out", str(Path(d) / "s")])
+            from webbuild.lint import lint_dir
+            rules = {i.rule for i in lint_dir(str(Path(d) / "s"))}
+            self.assertIn("missing-file", rules)  # img/filter.jpg etc. are not there
+            (Path(d) / "s" / "frames").mkdir()
+            for i in range(1, 4):
+                (Path(d) / "s" / "frames" / f"{i:04d}.jpg").write_bytes(b"x")
+            html = (Path(d) / "s" / "index.html").read_text().replace("var n=0,", "var n=9,")
+            (Path(d) / "s" / "index.html").write_text(html)
+            self.assertIn("missing-frames", {i.rule for i in lint_dir(str(Path(d) / "s"))})
 
 
 class FramesTests(unittest.TestCase):
