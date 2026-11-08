@@ -39,7 +39,7 @@ def main(argv=None) -> int:
     c = sub.add_parser("check", help="validate a brief")
     c.add_argument("brief")
     s = sub.add_parser("setup", help="install the /webbuild command for Claude Code")
-    s.add_argument("--repo", default="adithyaraghavv/webbuild")
+    s.add_argument("--repo", default="adithyaraghavv/webtemp")
     s.add_argument("--home", help=argparse.SUPPRESS)
     a = p.parse_args(argv)
 
