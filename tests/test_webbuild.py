@@ -162,6 +162,37 @@ class AiTellTests(unittest.TestCase):
         self.assertTrue(advice({"name": "x", "direction": "a", "register": "weird"}))
 
 
+class RestaurantTests(unittest.TestCase):
+    B = {**EXAMPLE, "template": "restaurant", "theme": {"preset": "cantina"}, "order_url": "https://example.com/o",
+         "phone": "+919876543210", "visit_image": "img/v.jpg", "cta_label": "Order now"}
+
+    def test_renders_sections_and_passes_lint(self):
+        h = render(self.B)
+        for needle in ('class="rest"', 'data-fx="1"', 'class="ready"', 'class="mcat', 'class="find has-photo"',
+                       "Order now", "Explore the menu"):
+            self.assertIn(needle, h)
+        self.assertNotIn('class="card"', h)  # no identical card grid
+        self.assertEqual([i for i in lint_html(h) if i.grade == "FAIL"], [])
+
+    def test_reveal_defaults_visible_without_js_or_frames(self):
+        h = render({**self.B, "hero": {"poster": "poster.jpg"}})
+        self.assertIn("opacity:var(--reveal,1)", h)
+        self.assertIn("var n=0,", h)
+
+    def test_no_guessed_directions(self):
+        self.assertNotIn("Get directions", render({k: v for k, v in self.B.items() if k != "map_url"}))
+        self.assertIn("Get directions", render({**self.B, "map_url": "https://maps.example/x"}))
+
+    def test_escape_and_bad_template(self):
+        h = render({**self.B, "name": "<script>x</script>"})
+        self.assertNotIn("<script>x</script>", h)
+        self.assertTrue(validate({"name": "x", "template": "nope"}))
+
+    def test_preset_cantina_listed(self):
+        from webbuild.site import PRESETS
+        self.assertIn("cantina", PRESETS)
+
+
 class FramesTests(unittest.TestCase):
     def test_extract(self):
         with tempfile.TemporaryDirectory() as d:

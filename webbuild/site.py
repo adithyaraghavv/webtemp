@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+from . import restaurant
+
 PRESETS = {
     # Each preset is a different material: palette, type pairing, corner shape, borders.
     "ember": {"bg": "#100d0c", "fg": "#f3ece4", "muted": "#b3a89d", "card": "#1b1715", "accent": "#e0475a",
@@ -28,6 +30,10 @@ PRESETS = {
               "on_accent": "#f6efe0", "line": "#2a1d17", "scrim": "#1f1612", "hero_fg": "#fbf0d8",
               "heading_font": "Bricolage Grotesque", "body_font": "Manrope", "heading_axis": ":wght@600;800",
               "radius": "10px", "btn_radius": "8px", "bw": "2px"},
+    "cantina": {"bg": "#150c0b", "fg": "#f2e7e1", "muted": "#bfa9a1", "card": "#1f1210", "accent": "#c9302a",
+                "on_accent": "#fff0ea", "line": "#40241f", "scrim": "#0d0605", "hero_fg": "#fbeee8",
+                "heading_font": "Anton", "body_font": "Barlow", "heading_axis": "",
+                "radius": "4px", "btn_radius": "2px", "bw": "0px"},
 }
 DEFAULT_THEME = PRESETS["ember"]
 COLOR_KEYS = ("bg", "fg", "muted", "card", "accent", "on_accent", "line", "scrim", "hero_fg")
@@ -51,6 +57,8 @@ def e(v) -> str:
 
 def validate(brief: dict) -> list[str]:
     errs = [f"missing required field: {k}" for k in REQUIRED if not brief.get(k)]
+    if brief.get("template", "classic") not in ("classic", "restaurant"):
+        errs.append("template must be classic or restaurant")
     raw = brief.get("theme") or {}
     if "preset" in raw and raw["preset"] not in PRESETS:
         errs.append(f"theme.preset must be one of: {', '.join(PRESETS)}")
@@ -174,11 +182,11 @@ footer{padding:32px 24px;text-align:center;color:var(--muted);font-size:.85rem}
 
 JS = """
 (function(){
-var n=%(count)d,dir=%(dir)s,ext=%(ext)s,pad=%(pad)d;
+var n=%(count)d,dir=%(dir)s,ext=%(ext)s,pad=%(pad)d,fx=%(fx)d;
 var hero=document.getElementById('hero'),cv=document.getElementById('cv');
 if(!n||!cv)return;
 if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){return;}
-var ctx=cv.getContext('2d'),imgs=new Array(n),cur=-1,loaded=0;
+var root=document.documentElement.style,ctx=cv.getContext('2d'),imgs=new Array(n),cur=-1,loaded=0;
 function size(){var r=window.devicePixelRatio>2?2:window.devicePixelRatio||1;cv.width=innerWidth*r;cv.height=innerHeight*r;draw(cur<0?0:cur,true)}
 function name(i){return dir+String(i+1).padStart(pad,'0')+ext}
 function draw(i,force){var im=imgs[i];if(!im||!im.complete||!im.naturalWidth)return;if(i===cur&&!force)return;cur=i;
@@ -188,10 +196,12 @@ function load(i){var im=new Image();im.onload=function(){loaded++;if(i===0||i===
 load(0);for(var i=1;i<n;i+=1){(function(k){setTimeout(function(){load(k)},k*12)})(i)}
 var raf=0;function onScroll(){if(raf)return;raf=requestAnimationFrame(function(){raf=0;
  var r=hero.getBoundingClientRect(),p=Math.min(1,Math.max(0,-r.top/(hero.offsetHeight-innerHeight)));
+ if(fx){var c=function(v){return Math.min(1,Math.max(0,v))};root.setProperty('--reveal',c((p-.74)/.16));root.setProperty('--leave',c((p-.9)/.1))}
  var i=Math.min(n-1,Math.floor(p*(n-1)));
  if(!imgs[i]||!imgs[i].complete){for(var d=1;d<n;d++){if(imgs[i-d]&&imgs[i-d].complete){i=i-d;break}}}
  draw(i)})}
-addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',size);size();
+if(fx){root.setProperty('--reveal',0)}
+addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',size);size();onScroll();
 })();
 """
 
@@ -207,8 +217,11 @@ def render(brief: dict) -> str:
     if not frames_dir.endswith("/"):
         frames_dir += "/"
     ext = hero.get("ext", ".jpg")
+    rest = brief.get("template") == "restaurant"
     css = CSS % {**t, "hero_vh": 100 + min(max(count, 0), 240) * 3 if count else 100}
-    js = JS % {"count": count, "dir": json.dumps(frames_dir), "ext": json.dumps(ext), "pad": int(hero.get("pad", 4))}
+    if rest:
+        css += restaurant.CSS % {}
+    js = JS % {"fx": 1 if rest else 0, "count": count, "dir": json.dumps(frames_dir), "ext": json.dumps(ext), "pad": int(hero.get("pad", 4))}
     poster = f'<img class="poster" src="{e(hero["poster"])}" alt="">' if hero.get("poster") else ""
     fonts = ("family=" + t["heading_font"].replace(" ", "+") + t["heading_axis"] +
              "&family=" + t["body_font"].replace(" ", "+") + ":wght@400;600")
@@ -218,6 +231,14 @@ def render(brief: dict) -> str:
     about = (f'<section id="about" class="sec"><h2>{e(brief.get("about_title", "Our story"))}</h2>'
              f'<p class="about">{e(brief.get("about", ""))}</p></section>') if brief.get("about") else ""
     desc = e(brief.get("description") or brief.get("tagline") or brief["name"])
+    if rest:
+        body = (restaurant.nav(brief) + restaurant.hero(brief, poster) + restaurant.ready(brief) + about
+                + restaurant.menu(brief) + _gallery(brief) + restaurant.find(brief))
+    else:
+        body = (f'<nav><b>{e(brief["name"])}</b><div>{nav}</div></nav>'
+                f'<header id="hero"><div id="stage">{poster}<canvas id="cv" aria-hidden="true"></canvas>'
+                f'<div class="hero-copy"><h1>{e(brief["name"])}</h1><p>{e(brief.get("tagline", ""))}</p>{cta}</div></div></header>'
+                f'{about}{_menu(brief)}{_gallery(brief)}{_visit(brief)}')
     return f"""<!doctype html>
 <html lang="{e(brief.get('lang', 'en'))}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -225,11 +246,8 @@ def render(brief: dict) -> str:
 <meta name="description" content="{desc}"><meta name="theme-color" content="{e(t['bg'])}">
 <meta property="og:title" content="{e(brief['name'])}"><meta property="og:description" content="{desc}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?{fonts}&display=swap" rel="stylesheet">
-<style>{css}</style></head><body>
-<nav><b>{e(brief['name'])}</b><div>{nav}</div></nav>
-<header id="hero"><div id="stage">{poster}<canvas id="cv" aria-hidden="true"></canvas>
-<div class="hero-copy"><h1>{e(brief['name'])}</h1><p>{e(brief.get('tagline', ''))}</p>{cta}</div></div></header>
-{about}{_menu(brief)}{_gallery(brief)}{_visit(brief)}
+<style>{css}</style></head><body{' class="rest"' if rest else ''} id="top">
+{body}
 <footer>&copy; {e(brief['name'])}</footer>
 <script>{js}</script></body></html>
 """

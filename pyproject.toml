@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webbuild"
-version = "0.2.0"
+version = "0.3.0"
 description = "Own-it website and landing page builder kit for Claude Code"
 requires-python = ">=3.10"
 license = {text = "MIT"}

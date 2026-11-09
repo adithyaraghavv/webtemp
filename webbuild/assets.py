@@ -23,6 +23,15 @@ one go. Accept "skip" or "you decide" for anything optional. Do not guess facts.
 Never invent prices, hours, addresses, awards or reviews. If something is missing, leave it out
 or mark it clearly as a placeholder in my summary.
 
+Template: for a restaurant, bar or cafe set `"template": "restaurant"` and `"theme": {"preset": "cantina"}`
+(dark, heavy condensed type, one red accent; pick another preset if the business calls for it). It gives a
+fly-through hero (scroll moves the camera, the name reveals at the end, the video then shrinks into the page),
+a bold call-to-action band, a ruled menu with a featured photo per category, and a split "Find us" section.
+Extra brief fields for it: `order_url`, `ready_title`, `ready_text`, `visit_title`, `visit_image`. For the
+fly-through, ask for ONE steady 6 to 10 second clip that starts outside the entrance and moves inside
+(phone footage is fine). If I only have photos, say the hero will be weaker and ask before continuing.
+Other businesses use the default template.
+
 Design direction (do this before writing the brief; it is what stops the site looking machine-made):
 - Commit to ONE look and write it as `direction` in the brief, one line, for example "dark and cinematic,
   heavy condensed type, one red accent" or "warm and editorial, serif headlines, paper tones". Safe,
