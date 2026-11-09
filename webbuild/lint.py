@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import colorsys
 import re
+from html.parser import HTMLParser
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -61,6 +62,104 @@ def _text_of(htm: str) -> str:
     t = re.sub(r"<(script|style)\b.*?</\1>", " ", htm, flags=re.S | re.I)
     t = re.sub(r"<[^>]+>", " ", t)
     return re.sub(r"\s+", " ", t)
+
+
+OVERUSED_FONTS = {"inter", "roboto", "open sans", "arial", "helvetica", "helvetica neue", "lato", "montserrat",
+                  "poppins", "system-ui", "sans-serif", "segoe ui"}
+
+
+def _first_family(v: str) -> str:
+    return v.split(",")[0].strip().strip("'\"").lower()
+
+
+def _sat(hexc: str) -> float:
+    h = hexc.lstrip("#")
+    if len(h) in (3, 4):
+        h = "".join(c * 2 for c in h[:3])
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    return colorsys.rgb_to_hsv(r, g, b)[1]
+
+
+class _Cards(HTMLParser):
+    """Finds nested cards and runs of identical cards that are not priced menu items."""
+
+    def __init__(self):
+        super().__init__()
+        self.stack = []      # (tag, is_card)
+        self.nested = 0
+        self.plain_cards = 0
+        self._card_open = []  # per open card: has price
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("br", "img", "input", "meta", "link", "hr"):
+            return
+        cls = (dict(attrs).get("class") or "").split()
+        is_card = any(c == "card" or c.endswith("-card") or c.startswith("card-") for c in cls)
+        if is_card and any(c for _, c in self.stack):
+            self.nested += 1
+        if self._card_open and "price" in cls:
+            self._card_open[-1] = True
+        if is_card:
+            self._card_open.append(False)
+        self.stack.append((tag, is_card))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                is_card = self.stack[i][1]
+                del self.stack[i:]
+                if is_card and self._card_open and not self._card_open.pop():
+                    self.plain_cards += 1
+                break
+
+
+def _ai_tells(css_nc: str, htm: str, tok: dict) -> list[Issue]:
+    """Original checks for the look that makes a page read as machine-made."""
+    out: list[Issue] = []
+    # type: overused families, or no pairing at all
+    fams = {k: _first_family(v) for k, v in tok.items() if k.startswith("font-")}
+    for k, f in fams.items():
+        if f in OVERUSED_FONTS:
+            out.append(Issue("WARN", "overused-font", f"--{k} is {f!r}, the default of most generated sites",
+                             "pick a distinctive family that suits the business (see `webbuild presets`)"))
+    heads = fams.get("font-head")
+    if heads and heads == fams.get("font-body"):
+        out.append(Issue("WARN", "no-pairing", "heading and body use the same family", "pair a display face with a quiet text face"))
+    # neutrals: untinted greys read as unfinished
+    for k in ("bg", "card", "fg", "muted"):
+        v = tok.get(k, "")
+        if HEX.fullmatch(v) and _sat(v) < 0.01 and v.lower() not in ("#fff", "#ffffff", "#000", "#000000"):
+            out.append(Issue("WARN", "untinted-neutral", f"--{k} {v} is a pure grey", "tint toward the palette's hue"))
+    # grey text sitting on a coloured surface
+    for t, surf in (("muted", "bg"), ("muted", "card")):
+        a, b = tok.get(t, ""), tok.get(surf, "")
+        if HEX.fullmatch(a) and HEX.fullmatch(b) and _sat(a) < 0.06 and _sat(b) > 0.35:
+            out.append(Issue("WARN", "grey-on-colour", f"grey --{t} on the coloured --{surf}", "use a tint of the background hue"))
+    # motion that feels bouncy or springy
+    for m in re.finditer(r"cubic-bezier\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)", css_nc):
+        y1, y2 = float(m.group(2)), float(m.group(4))
+        if y1 < 0 or y1 > 1 or y2 < 0 or y2 > 1:
+            out.append(Issue("WARN", "bounce-easing", f"overshooting easing {m.group(0)}", "use an ease-out curve that settles"))
+    if re.search(r"\b(bounce|elastic|spring)\b", css_nc, re.I):
+        out.append(Issue("WARN", "bounce-easing", "bounce/elastic/spring motion", "use a short ease-out"))
+    # glass everywhere
+    if len(re.findall(r"backdrop-filter\s*:", css_nc)) > 1:
+        out.append(Issue("WARN", "glass", "backdrop-filter on several elements", "one blurred bar at most; elsewhere use solid surfaces"))
+    # layout monotony
+    cp = _Cards()
+    try:
+        cp.feed(htm)
+    except Exception:
+        pass
+    if cp.nested:
+        out.append(Issue("WARN", "nested-cards", f"{cp.nested} card(s) inside another card", "flatten: one surface per idea"))
+    if cp.plain_cards >= 3:
+        out.append(Issue("WARN", "card-grid", f"{cp.plain_cards} identical unpriced cards in a row",
+                         "vary the layout: one large, one wide, or plain text with rules"))
+    # decorative data
+    if re.search(r'class="[^"]*\bspark', htm, re.I):
+        out.append(Issue("WARN", "sparkline", "decorative sparkline", "remove it unless it shows real data"))
+    return out
 
 
 def lint_html(htm: str) -> list[Issue]:
@@ -127,6 +226,8 @@ def lint_html(htm: str) -> list[Issue]:
                              "labels in sentence case, untracked"))
     if not re.search(r"text-wrap\s*:\s*balance", css_nc):
         out.append(Issue("WARN", "text-wrap", "no text-wrap: balance on headings"))
+
+    out += _ai_tells(css_nc, htm, tok)
 
     # contrast from tokens
     def pair(fg, bg, need, label):

@@ -1,8 +1,9 @@
-import json, subprocess, tempfile, unittest
+import json, re, subprocess, tempfile, unittest
 from pathlib import Path
 from webbuild.cli import EXAMPLE, main
 from webbuild.frames import extract
-from webbuild.site import render, validate
+from webbuild.site import advice, render, validate
+from webbuild.lint import lint_html
 
 
 class SiteTests(unittest.TestCase):
@@ -117,6 +118,48 @@ class MissingFileTests(unittest.TestCase):
             html = (Path(d) / "s" / "index.html").read_text().replace("var n=0,", "var n=9,")
             (Path(d) / "s" / "index.html").write_text(html)
             self.assertIn("missing-frames", {i.rule for i in lint_dir(str(Path(d) / "s"))})
+
+
+class AiTellTests(unittest.TestCase):
+    def rules(self, extra_css="", body="", root=""):
+        base = EXAMPLE
+        page = render(base)
+        page = page.replace("</style>", extra_css + "</style>", 1).replace("</body>", body + "</body>", 1)
+        if root:
+            page = page.replace(":root{", ":root{" + root, 1)
+        return {i.rule for i in lint_html(page)}
+
+    def test_bounce_and_glass(self):
+        r = self.rules(".a{transition:transform .3s cubic-bezier(.34,1.56,.64,1)}"
+                       ".b{backdrop-filter:blur(8px)}.c{backdrop-filter:blur(4px)}")
+        self.assertIn("bounce-easing", r)
+        self.assertIn("glass", r)
+
+    def test_overused_and_same_font(self):
+        page = render(EXAMPLE).replace("--font-head:'", "--font-head:'Inter', '", 1)
+        self.assertIn("overused-font", {i.rule for i in lint_html(page)})
+        page = render(EXAMPLE)
+        page = re.sub(r"--font-body:'[^']*'", "--font-body:'Fraunces'", page)
+        page = re.sub(r"--font-head:'[^']*'", "--font-head:'Fraunces'", page)
+        self.assertIn("no-pairing", {i.rule for i in lint_html(page)})
+
+    def test_cards(self):
+        cards = '<div class="card">a</div>' * 3
+        self.assertIn("card-grid", self.rules(body=cards))
+        self.assertIn("nested-cards", self.rules(body='<div class="card"><div class="card">x</div></div>'))
+        priced = '<div class="card"><span class="price">1</span></div>' * 4
+        self.assertNotIn("card-grid", self.rules(body=priced))
+
+    def test_sparkline_and_grey(self):
+        self.assertIn("sparkline", self.rules(body='<svg class="sparkline"></svg>'))
+        page = render(EXAMPLE)
+        page = re.sub(r"--card:#[0-9a-fA-F]{6}", "--card:#808080", page, count=1)
+        self.assertIn("untinted-neutral", {i.rule for i in lint_html(page)})
+
+    def test_direction_advice(self):
+        self.assertTrue(advice({"name": "x"}))
+        self.assertFalse(advice({"name": "x", "direction": "dark and cinematic"}))
+        self.assertTrue(advice({"name": "x", "direction": "a", "register": "weird"}))
 
 
 class FramesTests(unittest.TestCase):

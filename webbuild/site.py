@@ -70,6 +70,20 @@ def validate(brief: dict) -> list[str]:
     return errs
 
 
+def advice(brief: dict) -> list[str]:
+    """Non-blocking notes on the brief: the design direction is what keeps a site from reading as generic."""
+    out = []
+    d = str(brief.get("direction") or "").strip()
+    if not d:
+        out.append('no "direction": write one line naming the single look (e.g. "dark and cinematic, heavy condensed type, '
+                   'one red accent"). Mixed or safe looks read as generic.')
+    elif len(d.split()) > 25:
+        out.append('"direction" is long; reduce it to one look')
+    if brief.get("register", "brand") not in ("brand", "product"):
+        out.append('"register" must be "brand" (marketing, bold) or "product" (app UI, restrained)')
+    return out
+
+
 def _digits(v: str) -> str:
     return re.sub(r"\D", "", v or "")
 

@@ -9,10 +9,11 @@ from . import __version__
 from .assets import command_md
 from .frames import extract
 from .lint import lint_dir, report
-from .site import PRESETS, build, validate
+from .site import PRESETS, advice, build, validate
 
 EXAMPLE = {
-    "name": "Cafe Example", "tagline": "Slow coffee. Fast Wi-Fi.", "lang": "en", "currency": "Rs ",
+    "name": "Cafe Example", "direction": "warm and editorial: paper tones, serif headlines, real photos, one accent",
+    "register": "brand", "tagline": "Slow coffee. Fast Wi-Fi.", "lang": "en", "currency": "Rs ",
     "theme": {"preset": "paper"},
     "hero": {"frames": 120, "dir": "frames/", "ext": ".jpg", "pad": 4, "poster": "poster.jpg"},
     "about_title": "Our story", "about": "Two sentences about the place, in the owner's own words.",
@@ -57,8 +58,11 @@ def main(argv=None) -> int:
             print(report(issues))
             return 1 if any(i.grade == "FAIL" for i in issues) else 0
         elif a.cmd == "check":
-            errs = validate(json.loads(Path(a.brief).read_text()))
+            brief = json.loads(Path(a.brief).read_text())
+            errs = validate(brief)
             print("\n".join(errs) if errs else "brief OK")
+            for n in advice(brief):
+                print("note: " + n)
             return 1 if errs else 0
         elif a.cmd == "frames":
             print(json.dumps(extract(a.video, a.out, a.count, a.width)))

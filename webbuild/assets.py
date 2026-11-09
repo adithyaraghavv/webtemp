@@ -24,6 +24,16 @@ Never invent prices, hours, addresses, awards or reviews. If something is missin
 or mark it clearly as a placeholder in my summary.
 
 Design direction (do this before writing the brief; it is what stops the site looking machine-made):
+- Commit to ONE look and write it as `direction` in the brief, one line, for example "dark and cinematic,
+  heavy condensed type, one red accent" or "warm and editorial, serif headlines, paper tones". Safe,
+  in-between looks are what make a site feel generic. Do not blend two directions.
+- This is brand work (marketing, landing pages): use the bolder rules. Large display type, real asymmetry,
+  scroll choreography, one strong accent. Set `register` to "brand". Use "product" only for app UI.
+- Neutrals are tinted toward the palette hue, never pure grey, black or white. Pair a distinctive display
+  face with a quiet text face. Avoid Inter, Roboto, Arial, Open Sans, Poppins, Montserrat and Lato as the look.
+- Avoid the machine-made tells: identical card grids, cards inside cards, glass blur on many surfaces,
+  grey text on coloured backgrounds, bounce or elastic easing, decorative sparklines, purple-blue gradients,
+  emoji as icons, big-number stat rows with no real numbers behind them.
 - Ask for 1 or 2 sites I like. Name what makes them work (grid, type scale, photo style, motion) and use
   the principles, never copy them.
 - Pick ONE preset from `webbuild presets` (ember, paper, street, quiet, diner) that fits this business's
@@ -34,7 +44,7 @@ Design direction (do this before writing the brief; it is what stops the site lo
   filler like "elevate your experience", "seamless", "crafted with passion", "world-class".
 - Never invent customer counts, awards, reviews or "trusted by" claims.
 
-Step 2: write `brief.json` (see `webbuild example` for every field), then show me a 6-line summary
+Step 2: write `brief.json` (see `webbuild example` for every field; run `webbuild check brief.json` and act on its notes), then show me a 6-line summary
 of what you will build and what is missing. Continue unless I object.
 
 Step 3: build.
@@ -51,8 +61,13 @@ Step 3: build.
 
 Step 4: quality gate (loop, max 3 rounds). Run `webbuild lint site`. Fix every FAIL at the cause in
 `brief.json` or the HTML. Never hide a FAIL by weakening the linter. Fix or explain every WARN. Then re-run.
-Then do a design critique on the screenshots: what is the one memorable thing on the first screen?
-Does anything look like a template? Would a person believe a designer made this? Fix what is weak.
+Then do a design critique on the screenshots (390px and 1280px) and write down your answers:
+1. What is the one memorable thing on the first screen?
+2. Would a person guess an AI made this? Name every tell you see (default fonts, card grids, timid colour,
+   generic hero, stock phrasing) and fix each one.
+3. Does the page keep to the one `direction` from the brief, or did it drift into a mix?
+4. Does it have a clear hierarchy: one big idea per screen, not many equal boxes?
+Fix what is weak, rebuild, re-lint, and look again. Do not report done on a page you judged generic.
 Also check:
 - Lighthouse-style basics: page title, meta description, alt text, tap targets, contrast
 - Total page weight under 12 MB; no single image over 400 KB unless it is the hero frames
