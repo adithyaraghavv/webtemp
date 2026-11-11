@@ -2,7 +2,7 @@
 import json, random, shutil, subprocess, unittest
 from pathlib import Path
 
-QR_JS = Path(__file__).resolve().parent.parent / "web" / "qr.js"
+QR_JS = Path(__file__).resolve().parents[2] / "webbuild" / "ordering_kit" / "web" / "qr.js"
 try:
     import cv2, numpy as np
 except Exception:

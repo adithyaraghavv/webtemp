@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-WEB = Path(__file__).resolve().parent.parent / "web"
+WEB = Path(__file__).resolve().parents[2] / "webbuild" / "ordering_kit" / "web"
 PSQL = shlex.split(os.environ["QR_PSQL"])
 IDENT = re.compile(r"^[a-z_][a-z0-9_]*$")
 TOKENS = {"staff-token": ("authenticated", "11111111-1111-1111-1111-111111111111"),

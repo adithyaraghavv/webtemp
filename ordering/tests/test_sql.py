@@ -5,7 +5,7 @@ import os, shlex, subprocess, unittest
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SQL = HERE.parent / "supabase"
+SQL = HERE.parent.parent / "webbuild" / "ordering_kit" / "supabase"
 PSQL = os.environ.get("QR_PSQL")
 
 

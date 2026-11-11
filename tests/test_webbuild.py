@@ -193,6 +193,43 @@ class RestaurantTests(unittest.TestCase):
         self.assertIn("cantina", PRESETS)
 
 
+class OrderingInitTests(unittest.TestCase):
+    def test_copies_pages_and_keeps_sql_out_of_the_site(self):
+        from webbuild import ordering
+        with tempfile.TemporaryDirectory() as d:
+            site = Path(d) / "site"; site.mkdir()
+            r = ordering.init(str(site), "https://abc.supabase.co", "sb_publishable_abc123")
+            for f in ("order.html", "staff.html", "tables.html", "api.js", "qr.js", "ui.css", "config.js"):
+                self.assertTrue((site / "order" / f).exists(), f)
+            self.assertTrue(r["configured"])
+            self.assertEqual(sorted(x.name for x in (Path(d) / "ordering-sql").iterdir()), ["001_schema.sql", "002_bill_rating_staff.sql"])
+            self.assertFalse(list(site.rglob("*.sql")))  # never published
+            cfg = (site / "order" / "config.js").read_text()
+            self.assertIn("https://abc.supabase.co", cfg)
+
+    def test_refuses_secret_keys_and_bad_urls(self):
+        import base64, json as j
+        from webbuild import ordering
+        jwt = lambda role: "h." + base64.urlsafe_b64encode(j.dumps({"role": role}).encode()).decode().rstrip("=") + ".s"
+        with tempfile.TemporaryDirectory() as d:
+            site = Path(d) / "site"; site.mkdir()
+            for bad in ("sb_secret_xyz", jwt("service_role"), "random-string"):
+                with self.assertRaises(ValueError):
+                    ordering.init(str(site), "https://abc.supabase.co", bad)
+            with self.assertRaises(ValueError):
+                ordering.init(str(site), "https://evil.example.com", "sb_publishable_x")
+            ordering.init(str(site), "https://abc.supabase.co", jwt("anon"))  # anon JWT is fine
+            with self.assertRaises(FileNotFoundError):
+                ordering.init(str(Path(d) / "nope"))
+
+    def test_cli_and_quote_safety(self):
+        with tempfile.TemporaryDirectory() as d:
+            site = Path(d) / "site"; site.mkdir()
+            self.assertEqual(main(["ordering", "init", str(site)]), 0)
+            self.assertIn('"url": ""', (site / "order" / "config.js").read_text())
+            self.assertEqual(main(["ordering", "init", str(site), "--url", "http://evil.test", "--key", "k"]), 2)
+
+
 class FramesTests(unittest.TestCase):
     def test_extract(self):
         with tempfile.TemporaryDirectory() as d:

@@ -9,6 +9,7 @@ from . import __version__
 from .assets import command_md
 from .frames import extract
 from .lint import lint_dir, report
+from . import ordering
 from .site import PRESETS, advice, build, validate
 
 EXAMPLE = {
@@ -43,6 +44,13 @@ def main(argv=None) -> int:
     sub.add_parser("presets", help="list design presets")
     c = sub.add_parser("check", help="validate a brief")
     c.add_argument("brief")
+    o = sub.add_parser("ordering", help="add QR table ordering pages to a built site")
+    osub = o.add_subparsers(dest="ocmd", required=True)
+    oi = osub.add_parser("init", help="copy the ordering pages into SITE/order and the SQL next to the site (not inside it)")
+    oi.add_argument("site", nargs="?", default="site")
+    oi.add_argument("--url", default="", help="https://<project>.supabase.co")
+    oi.add_argument("--key", default="", help="publishable (anon) key only")
+    oi.add_argument("--sql-out", default=None, help="where to put the SQL (default: ../ordering-sql)")
     s = sub.add_parser("setup", help="install the /webbuild command for Claude Code")
     s.add_argument("--repo", default="adithyaraghavv/webtemp")
     s.add_argument("--home", help=argparse.SUPPRESS)
@@ -64,6 +72,11 @@ def main(argv=None) -> int:
             for n in advice(brief):
                 print("note: " + n)
             return 1 if errs else 0
+        elif a.cmd == "ordering":
+            r = ordering.init(a.site, a.url, a.key, a.sql_out)
+            print(json.dumps(r, indent=2))
+            if not r["configured"]:
+                print("note: no url/key given; fill in order/config.js before use. Run the SQL files in order on the cafe's own Supabase project.")
         elif a.cmd == "frames":
             print(json.dumps(extract(a.video, a.out, a.count, a.width)))
         elif a.cmd == "build":

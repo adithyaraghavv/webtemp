@@ -3,12 +3,12 @@
 Customer scans the QR on a table, picks items, sends the order. Staff see it live, mark it served. The customer asks
 for the bill, optionally rates the visit (Skip is always there), then pays by UPI QR. Staff confirm the payment.
 
-No libraries and no build step: plain HTML and JS, our own QR encoder (`web/qr.js`), `fetch` for the Supabase REST API.
+No libraries and no build step: plain HTML and JS, our own QR encoder (`ordering_kit/web/qr.js`), `fetch` for the Supabase REST API.
 
 ## Parts
-- `supabase/001_schema.sql`, `002_bill_rating_staff.sql`: tables, row-level security and the only functions customers can call.
-- `web/order.html` customer page, `web/staff.html` kitchen and bills, `web/tables.html` printable table QR codes.
-- `web/config.js`: Supabase URL and the publishable key (never the service key).
+- `webbuild/ordering_kit/supabase/001_schema.sql`, `002_bill_rating_staff.sql`: tables, row-level security and the only functions customers can call.
+- `webbuild/ordering_kit/web/`: `order.html` customer page, `staff.html` kitchen and bills, `tables.html` printable table QR codes.
+- `config.js`: Supabase URL and the publishable key (never the service key).
 - `dev/`: local test server and seed data. It runs the real SQL against a throwaway local Postgres, never Supabase.
 - `tests/`: SQL tests (attacks included), QR encoder test, browser test of the whole flow.
 
@@ -23,12 +23,12 @@ No libraries and no build step: plain HTML and JS, our own QR encoder (`web/qr.j
 ## Setting up a cafe (when a Supabase project is available)
 1. New Supabase project for the cafe. Run the two SQL files in order.
 2. Insert one `settings` row (`id = 1`), menu items, tables. Create a staff user in Supabase Auth, then insert their id into `public.staff`.
-3. Put the URL and publishable key in `web/config.js`. Sign in at `staff.html`, open `tables.html`, print the codes.
+3. Put the URL and publishable key in `config.js`. Sign in at `staff.html`, open `tables.html`, print the codes.
 4. Run guard against it before real use.
 
 ## Local test
 ```
-createdb qrunit; psql -d qrunit -f tests/boot.sql; psql -d qrunit -f supabase/001_schema.sql; psql -d qrunit -f supabase/002_bill_rating_staff.sql
+createdb qrunit; psql -d qrunit -f ordering/tests/boot.sql; psql -d qrunit -f webbuild/ordering_kit/supabase/001_schema.sql; psql -d qrunit -f webbuild/ordering_kit/supabase/002_bill_rating_staff.sql
 QR_PSQL="psql -d qrunit" python3 -m unittest tests.test_sql tests.test_qr
 ```
 For the browser test use a second database with `dev/seed.sql` and `python3 dev/mock_server.py 8780`, then `python3 tests/e2e_browser.py`.
@@ -41,3 +41,7 @@ For the browser test use a second database with `dev/seed.sql` and `python3 dev/
 - The table secret is fixed per table; change the row to rotate it.
 - If the phone is closed mid-meal the customer re-scans and sees a new bill; staff can still see the old one.
 - Google review link is shown to everyone after payment, never filtered by rating.
+
+## Using it from a site
+`webbuild ordering init site --url https://<project>.supabase.co --key <publishable key>` copies the pages into `site/order/`
+and the SQL into `../ordering-sql/` (outside the site, so it is never published). Secret keys are refused.

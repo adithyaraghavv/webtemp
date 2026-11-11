@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webbuild"
-version = "0.3.0"
+version = "0.4.0"
 description = "Own-it website and landing page builder kit for Claude Code"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -14,3 +14,6 @@ webbuild = "webbuild.cli:main"
 
 [tool.setuptools]
 packages = ["webbuild"]
+
+[tool.setuptools.package-data]
+webbuild = ["ordering_kit/web/*", "ordering_kit/supabase/*"]

@@ -83,6 +83,14 @@ Also check:
 - Works without JavaScript (poster and content still visible) and with reduced motion
 - No broken links; phone and WhatsApp links are correct
 
+Optional: table ordering by QR (only if the business asks for it). Needs the cafe's own Supabase project,
+which I create or approve myself; never create or change a Supabase project without my explicit yes. Steps:
+`webbuild ordering init site --url https://<project>.supabase.co --key <PUBLISHABLE key>` copies the pages into
+`site/order/` and the SQL into `ordering-sql/` next to the site (never inside it). Only the publishable key may
+go in; the tool refuses secret keys. Then I run the two SQL files in order, add the staff user to `public.staff`,
+add menu items and tables, and print the table QR codes from `order/tables.html`. Say plainly that payment is
+confirmed by staff by hand, the orders list refreshes every few seconds, and guard should be run before real use.
+
 Step 5: finish. Tell me in plain English what you built, what is placeholder, what I must confirm
 with the client, and how to deploy (drag the `site` folder into Netlify, or `netlify deploy --dir site`).
 Do not deploy or publish anything unless I ask.
