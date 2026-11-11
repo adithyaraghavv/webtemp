@@ -24,6 +24,16 @@
     rpc: function (fn, args) { return call('POST', '/rest/v1/rpc/' + fn, args || {}); },
     get: function (path) { return call('GET', '/rest/v1/' + path); },
     patch: function (path, body) { return call('PATCH', '/rest/v1/' + path, body, { Prefer: 'return=minimal' }); },
+    insert: function (table, row) { return call('POST', '/rest/v1/' + table, row, { Prefer: 'return=representation' }); },
+    remove: function (path) { return call('DELETE', '/rest/v1/' + path); },
+    upload: async function (name, blob) {
+      var res = await fetch(C.url + '/storage/v1/object/menu/' + name, { method: 'POST', body: blob,
+        headers: { apikey: C.key, Authorization: 'Bearer ' + (token || C.key), 'Content-Type': blob.type, 'x-upsert': 'true' } });
+      if (!res.ok) { var j = null; try { j = await res.json(); } catch (e) {} fail(res, j); }
+    },
+    unstore: function (name) { return fetch(C.url + '/storage/v1/object/menu/' + name, { method: 'DELETE', headers: { apikey: C.key, Authorization: 'Bearer ' + (token || C.key) } }); },
+    imageUrl: function (name) { return C.url + '/storage/v1/object/public/menu/' + name; },
+    site: function () { return C.site || location.href.split('#')[0].split('?')[0].replace(/order\/[^\/]*$/, '').replace(/[^\/]*$/, ''); },
     login: async function (email, password) {
       var r = await call('POST', '/auth/v1/token?grant_type=password', { email: email, password: password });
       token = r.access_token; try { sessionStorage.setItem('staff_token', token); } catch (e) {}
@@ -37,5 +47,5 @@
     (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return n;
   };
-  window.money = function (paise, cur) { return (cur || 'Rs ') + (paise / 100).toFixed(paise % 100 ? 2 : 0); };
+  window.money = function (paise, cur) { var n = Math.abs(paise); return (paise < 0 ? '-' : '') + (cur == null ? 'Rs ' : cur) + (n / 100).toFixed(n % 100 ? 2 : 0); };
 })();

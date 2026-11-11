@@ -10,6 +10,7 @@ from .assets import command_md
 from .frames import extract
 from .lint import lint_dir, report
 from . import ordering
+from .theme import theme_from_photos
 from .site import PRESETS, advice, build, validate
 
 EXAMPLE = {
@@ -51,6 +52,8 @@ def main(argv=None) -> int:
     oi.add_argument("--url", default="", help="https://<project>.supabase.co")
     oi.add_argument("--key", default="", help="publishable (anon) key only")
     oi.add_argument("--sql-out", default=None, help="where to put the SQL (default: ../ordering-sql)")
+    th = sub.add_parser("theme", help="suggest colours and fonts from the cafe's photos (prints a theme block for brief.json)")
+    th.add_argument("photos", nargs="+")
     s = sub.add_parser("setup", help="install the /webbuild command for Claude Code")
     s.add_argument("--repo", default="adithyaraghavv/webtemp")
     s.add_argument("--home", help=argparse.SUPPRESS)
@@ -77,6 +80,8 @@ def main(argv=None) -> int:
             print(json.dumps(r, indent=2))
             if not r["configured"]:
                 print("note: no url/key given; fill in order/config.js before use. Run the SQL files in order on the cafe's own Supabase project.")
+        elif a.cmd == "theme":
+            print(json.dumps({"theme": theme_from_photos(a.photos)}, indent=2))
         elif a.cmd == "frames":
             print(json.dumps(extract(a.video, a.out, a.count, a.width)))
         elif a.cmd == "build":

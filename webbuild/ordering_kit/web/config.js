@@ -1,2 +1,3 @@
-/* Fill these in for each cafe (Supabase project URL and the PUBLISHABLE key only; never the service key). */
+/* Public settings for this cafe: Supabase URL and the PUBLISHABLE key only (never the secret key).
+   Optional: site = the public address of the website, used for the table QR codes, e.g. "https://mycafe.example/". */
 window.CAFE = { url: '', key: '' };

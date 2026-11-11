@@ -199,10 +199,10 @@ class OrderingInitTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             site = Path(d) / "site"; site.mkdir()
             r = ordering.init(str(site), "https://abc.supabase.co", "sb_publishable_abc123")
-            for f in ("order.html", "staff.html", "tables.html", "api.js", "qr.js", "ui.css", "config.js"):
+            for f in ("staff.html", "staff.js", "site.js", "site.css", "api.js", "qr.js", "ui.css", "config.js"):
                 self.assertTrue((site / "order" / f).exists(), f)
             self.assertTrue(r["configured"])
-            self.assertEqual(sorted(x.name for x in (Path(d) / "ordering-sql").iterdir()), ["001_schema.sql", "002_bill_rating_staff.sql"])
+            self.assertEqual(sorted(x.name for x in (Path(d) / "ordering-sql").iterdir()), ["001_schema.sql", "002_bill_rating_staff.sql", "003_analytics.sql", "004_storage.sql"])
             self.assertFalse(list(site.rglob("*.sql")))  # never published
             cfg = (site / "order" / "config.js").read_text()
             self.assertIn("https://abc.supabase.co", cfg)
@@ -247,3 +247,41 @@ class FramesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LandingOrderingTests(unittest.TestCase):
+    BRIEF = {"template": "restaurant", "name": "Cafe X", "direction": "dark and bold", "ordering": True, "about": "We roast.",
+             "gallery": ["a.jpg", "b.jpg"], "phone": "+919876543210", "email": "hi@x.example", "instagram": "@cafex",
+             "menu": [{"category": "Coffee", "items": [{"name": "Filter", "price": "90"}]}], "hours": [{"days": "Daily", "time": "8 to 8"}]}
+
+    def test_ordering_flag_adds_live_menu_and_scripts(self):
+        from webbuild.site import render
+        h = render(self.BRIEF)
+        for x in ('id="menu-live"', "order/site.js", "order/site.css", "order/config.js", 'id="about"', 'id="gallery"', 'id="contact"', "instagram.com/cafex"):
+            self.assertIn(x, h)
+        self.assertIn("Filter", h)  # static menu stays as the fallback
+
+    def test_no_flag_means_no_ordering_files(self):
+        from webbuild.site import render
+        b = dict(self.BRIEF); b.pop("ordering")
+        h = render(b)
+        self.assertNotIn("order/site.js", h); self.assertNotIn("menu-live", h)
+
+
+class ThemeTests(unittest.TestCase):
+    def test_dark_warm_photo_gives_readable_dark_theme(self):
+        from webbuild.theme import theme_from_pixels, contrast
+        px = [(40, 22, 16)] * 300 + [(200, 60, 40)] * 80 + [(230, 190, 150)] * 40
+        t = theme_from_pixels(px)
+        h = lambda x: tuple(int(x[i:i + 2], 16) for i in (1, 3, 5))
+        self.assertLess(sum(h(t["bg"])), 200)
+        for fg in ("fg", "muted", "accent"):
+            self.assertGreaterEqual(contrast(h(t[fg]), h(t["bg"])), 4.5, fg)
+        self.assertGreaterEqual(contrast(h(t["on_accent"]), h(t["accent"])), 4.5)
+
+    def test_light_photo_gives_light_theme_and_validates(self):
+        from webbuild.theme import theme_from_pixels
+        from webbuild.site import validate
+        t = theme_from_pixels([(235, 225, 205)] * 300 + [(60, 120, 90)] * 60)
+        self.assertGreater(sum(int(t["bg"][i:i + 2], 16) for i in (1, 3, 5)), 600)
+        self.assertEqual(validate({"name": "X", "theme": t}), [])

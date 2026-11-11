@@ -5,8 +5,10 @@ revoke update on public.orders from authenticated;
 grant update (status) on public.orders to authenticated;
 
 create view public.staff_orders with (security_invoker = true) as
-  select o.id, o.status, o.note, o.created_at, t.label as table_label, b.status as bill_status, b.id as bill_id,
-         coalesce(jsonb_agg(jsonb_build_object('name', oi.name, 'qty', oi.qty)) filter (where oi.id is not null), '[]'::jsonb) as items
+  select o.id, o.status, o.note, o.customer_name, o.customer_phone, o.created_at, o.updated_at,
+         t.label as table_label, b.status as bill_status, b.id as bill_id,
+         coalesce(jsonb_agg(jsonb_build_object('name', oi.name, 'qty', oi.qty, 'options', oi.options, 'note', oi.note)
+                  order by oi.id) filter (where oi.id is not null), '[]'::jsonb) as items
   from public.orders o
   join public.bills b on b.id = o.bill_id
   join public.cafe_tables t on t.id = b.table_id

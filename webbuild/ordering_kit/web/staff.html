@@ -1,82 +1,11 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orders: staff</title>
+<title>Owner dashboard</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="ui.css">
-<style>.wrap{max-width:1100px;padding-bottom:40px}.ord{border-left:4px solid var(--line)}.ord.new{border-left-color:var(--warn)}.ord.preparing{border-left-color:var(--accent)}
-.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.acts .btn{padding:8px 14px;font-size:.9rem}h2.sec{margin:28px 0 8px;font-size:1.5rem}</style>
 </head><body>
-<main class="wrap" id="app" aria-live="polite"></main>
-<script src="config.js"></script><script src="api.js"></script>
-<script>
-(function () {
-  'use strict';
-  var app = document.getElementById('app'), cfg = { currency: 'Rs ' }, orders = [], bills = [], err = '', timer = null, seen = {};
-  function ago(t) { var m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? 'just now' : m + ' min ago'; }
-
-  function login() {
-    app.textContent = '';
-    app.appendChild(el('header', { class: 'top' }, [el('h1', { text: 'Staff sign in' })]));
-    if (err) app.appendChild(el('div', { class: 'msg err', role: 'alert', text: err }));
-    var em = el('input', { id: 'em', type: 'email', autocomplete: 'username', required: 'required' });
-    var pw = el('input', { id: 'pw', type: 'password', autocomplete: 'current-password', required: 'required' });
-    var f = el('form', {}, [el('label', { for: 'em', text: 'Email' }), em, el('label', { for: 'pw', text: 'Password' }), pw,
-      el('p', {}, [el('button', { class: 'btn', type: 'submit', text: 'Sign in' })])]);
-    f.addEventListener('submit', async function (e) { e.preventDefault(); err = '';
-      try { await API.login(em.value, pw.value); start(); } catch (x) { err = 'Sign in failed. Check the email and password.'; login(); } });
-    app.appendChild(f);
-  }
-
-  async function load() {
-    try {
-      var c = await API.get('settings?select=currency'); if (c && c[0]) cfg.currency = c[0].currency;
-      orders = await API.get('staff_orders?select=*&status=in.(new,preparing)&order=created_at.asc');
-      bills = await API.get('staff_bills?select=*&status=eq.requested&order=requested_at.asc');
-      err = '';
-    } catch (e) { if (e.status === 401 || e.status === 403) { API.logout(); clearInterval(timer); return login(); } err = 'Connection problem. Retrying…'; }
-    var fresh = orders.filter(function (o) { return o.status === 'new' && !seen[o.id]; });
-    orders.forEach(function (o) { seen[o.id] = 1; });
-    document.title = (orders.filter(function (o) { return o.status === 'new'; }).length ? '(' + orders.filter(function (o) { return o.status === 'new'; }).length + ') ' : '') + 'Orders: staff';
-    draw();
-  }
-
-  async function setStatus(id, status) { try { await API.patch('orders?id=eq.' + encodeURIComponent(id), { status: status }); } catch (e) { err = 'Could not update that order.'; } load(); }
-  async function paid(id) { try { await API.rpc('mark_paid', { p_bill: id }); } catch (e) { err = 'Could not mark as paid.'; } load(); }
-
-  function draw() {
-    app.textContent = '';
-    app.appendChild(el('header', { class: 'top' }, [el('h1', { text: 'Orders' }),
-      el('span', {}, [el('a', { class: 'btn ghost', href: 'tables.html', text: 'Table QR codes' }), ' ', el('button', { class: 'btn ghost', text: 'Sign out', onclick: function () { API.logout(); clearInterval(timer); login(); } })])]));
-    if (err) app.appendChild(el('div', { class: 'msg err', role: 'alert', text: err }));
-    app.appendChild(el('h2', { class: 'sec', text: 'Kitchen' }));
-    if (!orders.length) app.appendChild(el('p', { class: 'muted', text: 'No open orders.' }));
-    var g = el('div', { class: 'grid2' });
-    orders.forEach(function (o) {
-      var c = el('div', { class: 'panel ord ' + o.status }, [
-        el('div', { class: 'row' }, [el('strong', { text: 'Table ' + o.table_label }), el('span', { class: 'pill ' + o.status, text: o.status + ' · ' + ago(o.created_at) })])]);
-      (o.items || []).forEach(function (i) { c.appendChild(el('div', { text: i.qty + ' × ' + i.name })); });
-      if (o.note) c.appendChild(el('p', { class: 'muted', text: 'Note: ' + o.note }));
-      var a = el('div', { class: 'acts' });
-      if (o.status === 'new') a.appendChild(el('button', { class: 'btn', text: 'Start preparing', onclick: function () { setStatus(o.id, 'preparing'); } }));
-      a.appendChild(el('button', { class: 'btn', text: 'Served', onclick: function () { setStatus(o.id, 'served'); } }));
-      a.appendChild(el('button', { class: 'btn ghost', text: 'Cancel', onclick: function () { if (confirm('Cancel this order?')) setStatus(o.id, 'cancelled'); } }));
-      c.appendChild(a); g.appendChild(c);
-    });
-    app.appendChild(g);
-    app.appendChild(el('h2', { class: 'sec', text: 'Bills waiting for payment' }));
-    if (!bills.length) app.appendChild(el('p', { class: 'muted', text: 'None.' }));
-    var g2 = el('div', { class: 'grid2' });
-    bills.forEach(function (b) {
-      var c = el('div', { class: 'panel' }, [el('div', { class: 'row' }, [el('strong', { text: 'Table ' + b.table_label }), el('strong', { text: money(b.total_paise, cfg.currency) })]),
-        el('p', { class: 'muted', text: 'Asked ' + ago(b.requested_at) + (b.rating ? ' · rated ' + b.rating + '/5' : '') }),
-        el('div', { class: 'acts' }, [el('button', { class: 'btn', text: 'Payment received', onclick: function () { if (confirm('Mark Table ' + b.table_label + ' as paid?')) paid(b.id); } })])]);
-      g2.appendChild(c);
-    });
-    app.appendChild(g2);
-  }
-  function start() { load(); clearInterval(timer); timer = setInterval(load, 4000); }
-  if (API.signedIn()) start(); else login();
-})();
-</script></body></html>
+<main class="dash" id="app" aria-live="polite"></main>
+<script src="config.js"></script><script src="api.js"></script><script src="qr.js"></script><script src="staff.js"></script>
+</body></html>

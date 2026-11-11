@@ -270,7 +270,8 @@ def lint_dir(site_dir: str) -> list[Issue]:
     for r in sorted(refs):
         if not (root / r).exists():
             out.append(Issue("FAIL", "missing-file", f"page references {r} but it is not in {root}",
-                             "copy it next to index.html, or fix the path in brief.json"))
+                             "run: webbuild ordering init " + str(root) + " --url ... --key ..." if r.startswith("order/")
+                             else "copy it next to index.html, or fix the path in brief.json"))
     m = re.search(r"var n=(\d+),dir=\"([^\"]*)\",ext=\"([^\"]*)\"", page)
     if m and int(m.group(1)) > 0:
         d = root / m.group(2)

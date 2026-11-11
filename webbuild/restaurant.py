@@ -38,8 +38,26 @@ opacity:calc(1 - var(--leave,0))}
 .find .photo img{width:100%%;height:100%%;min-height:46svh;object-fit:cover;display:block}
 .find .info{padding:clamp(48px,8vw,96px) 24px;max-width:600px}
 .find h2{font-size:clamp(2.4rem,8vw,4.8rem);text-transform:uppercase;margin-bottom:20px}
+.gal-wrap{max-width:1200px;margin:auto;padding:clamp(56px,9vw,112px) 24px}.gal-wrap>h2{font-size:clamp(2.4rem,8vw,5rem);text-transform:uppercase;margin-bottom:32px}
+.mosaic{display:grid;gap:10px;grid-template-columns:repeat(2,1fr);grid-auto-flow:dense}
+.mosaic img{width:100%%;height:100%%;object-fit:cover;display:block;border-radius:var(--radius);aspect-ratio:1}
+.mosaic img:nth-child(5n+1){grid-column:span 2;aspect-ratio:16/9}
+@media(min-width:860px){.mosaic{grid-template-columns:repeat(4,1fr)}.mosaic img:nth-child(5n+1){grid-column:span 2;grid-row:span 2;aspect-ratio:auto}}
+.about-wrap{display:grid;gap:28px;max-width:1100px;margin:auto;padding:clamp(56px,9vw,112px) 24px}
+.about-wrap h2{font-size:clamp(2.4rem,8vw,5rem);text-transform:uppercase}.about-wrap p{font-size:1.2rem;color:var(--muted);max-width:34em}
+.about-wrap img{width:100%%;aspect-ratio:4/5;object-fit:cover;border-radius:var(--radius);display:block}
+@media(min-width:860px){.about-wrap.has-photo{grid-template-columns:7fr 5fr;align-items:center}}
+.contact{background:var(--card);border-top:1px solid var(--line)}.contact .in{max-width:1100px;margin:auto;padding:clamp(48px,8vw,96px) 24px;display:grid;gap:24px}
+.contact h2{font-size:clamp(2.4rem,8vw,4.8rem);text-transform:uppercase}.contact ul{list-style:none;padding:0;display:grid;gap:10px;font-size:1.15rem}
+.contact li span{display:block;color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.06em}
+@media(min-width:860px){.contact .in{grid-template-columns:1fr 1fr}}
+.js .rv{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.js .rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.js .rv{opacity:1;transform:none;transition:none}}
+section[id]{scroll-margin-top:64px}
+.mfeat img{aspect-ratio:16/10}
 @media(max-width:560px){.rest nav>div a:not(.btn){display:none}}
-@media(min-width:860px){.mcat{grid-template-columns:5fr 7fr;align-items:start}.mcat.flip .mfeat{order:2}
+@media(min-width:860px){.mfeat img{aspect-ratio:4/5}.mcat{grid-template-columns:5fr 7fr;align-items:start}.mcat.flip .mfeat{order:2}
 .mcat.nofeat{grid-template-columns:1fr}.find.has-photo{grid-template-columns:1fr 1fr;min-height:72svh}}
 """
 
@@ -76,9 +94,11 @@ def _buttons(b: dict, ghost_first: bool = False) -> str:
 
 def nav(b: dict) -> str:
     links = ""
-    if b.get("menu"):
+    if b.get("menu") or b.get("ordering"):
         links += '<a href="#menu">Menu</a>'
     links += '<a href="#visit">Visit</a>'
+    if b.get("phone") or b.get("whatsapp") or b.get("email") or b.get("instagram"):
+        links += '<a href="#contact">Contact</a>'
     return (f'<nav><a class="brand" href="#top">{_e(b["name"])}</a><div>{links}'
             f'<a class="btn sm" href="{order_href(b)}">{_e(b.get("cta_label", "Order now"))}</a></div></nav>')
 
@@ -86,7 +106,7 @@ def nav(b: dict) -> str:
 def hero(b: dict, poster: str) -> str:
     tag = f'<p>{_e(b["tagline"])}</p>' if b.get("tagline") else ""
     second = (f'<a class="btn ghost" href="{order_href(b)}">{_e(b.get("cta_label", "Order now"))}</a>')
-    first = '<a class="btn" href="#menu">Explore the menu</a>' if b.get("menu") else ""
+    first = '<a class="btn" href="#menu">Explore the menu</a>' if (b.get("menu") or b.get("ordering")) else ""
     return (f'<header id="hero" data-fx="1"><div id="stage">{poster}<canvas id="cv" aria-hidden="true"></canvas>'
             f'<div class="reveal"><h1 class="mark">{_e(b["name"])}</h1>{tag}</div>'
             f'<div class="hero-actions">{first}{second}</div></div></header>')
@@ -98,12 +118,47 @@ def ready(b: dict) -> str:
     return (f'<section class="ready"><h2>{_e(b.get("ready_title", "Ready to eat?"))}</h2>{text}{btns}</section>')
 
 
+def about(b: dict) -> str:
+    if not b.get("about"):
+        return ""
+    img = (f'<img class="rv" loading="lazy" src="{_e(b["about_image"])}" alt="">' if b.get("about_image") else "")
+    return (f'<section id="about" class="about-wrap{" has-photo" if img else ""}"><div class="rv"><h2>{_e(b.get("about_title", "Our story"))}</h2>'
+            f'<p>{_e(b["about"])}</p></div>{img}</section>')
+
+
+def gallery(b: dict) -> str:
+    imgs = b.get("gallery") or []
+    if not imgs:
+        return ""
+    return ('<section id="gallery" class="gal-wrap"><h2 class="rv">Gallery</h2><div class="mosaic">'
+            + "".join(f'<img class="rv" loading="lazy" src="{_e(i)}" alt="{_e(b["name"])} photo {n}">' for n, i in enumerate(imgs, 1))
+            + "</div></section>")
+
+
+def contact(b: dict) -> str:
+    rows = []
+    if b.get("phone"):
+        rows.append(f'<li><span>Call</span><a href="tel:{_e(_digits(b["phone"]))}">{_e(b["phone"])}</a></li>')
+    if b.get("whatsapp"):
+        rows.append(f'<li><span>WhatsApp</span><a href="https://wa.me/{_digits(b["whatsapp"])}" rel="noopener">{_e(b["whatsapp"])}</a></li>')
+    if b.get("email"):
+        rows.append(f'<li><span>Email</span><a href="mailto:{_e(b["email"])}">{_e(b["email"])}</a></li>')
+    if b.get("instagram"):
+        h = str(b["instagram"]).lstrip("@")
+        rows.append(f'<li><span>Instagram</span><a href="https://instagram.com/{_e(h)}" rel="noopener">@{_e(h)}</a></li>')
+    if not rows:
+        return ""
+    return (f'<section id="contact" class="contact"><div class="in"><h2 class="rv">{_e(b.get("contact_title", "Say hello"))}</h2>'
+            f'<ul class="rv">{"".join(rows)}</ul></div></section>')
+
+
 def menu(b: dict) -> str:
     cats = b.get("menu") or []
-    if not cats:
+    if not cats and not b.get("ordering"):
         return ""
     cur = _e(b.get("currency", ""))
-    out = ['<section id="menu" class="menu-wrap"><h2>Menu</h2>']
+    live = b.get("ordering")
+    out = ['<section id="menu" class="menu-wrap"><h2 class="rv">Menu</h2>' + (f'<div id="menu-live" data-currency="{cur}">' if live else "")]
     for n, c in enumerate(cats):
         items = c.get("items", [])
         feat = next((i for i in items if i.get("image")), None)
@@ -115,7 +170,7 @@ def menu(b: dict) -> str:
             desc = f'<p>{_e(it["desc"])}</p>' if it.get("desc") else ""
             rows.append(f'<div class="mrow"><h4>{_e(it.get("name"))}</h4>{price}{desc}</div>')
         out.append(f'<div class="{cls}">{photo}<div><h3>{_e(c.get("category"))}</h3>{"".join(rows)}</div></div>')
-    out.append("</section>")
+    out.append("</div></section>" if live else "</section>")
     return "".join(out)
 
 

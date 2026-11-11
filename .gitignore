@@ -2,3 +2,6 @@ build/
 *.egg-info/
 __pycache__/
 site/
+
+# local test server uploads
+ordering/dev/.storage/

@@ -27,9 +27,12 @@ Template: for a restaurant, bar or cafe set `"template": "restaurant"` and `"the
 (dark, heavy condensed type, one red accent; pick another preset if the business calls for it). It gives a
 fly-through hero (scroll moves the camera, the name reveals at the end, the video then shrinks into the page),
 a bold call-to-action band, a ruled menu with a featured photo per category, and a split "Find us" section.
-Extra brief fields for it: `order_url`, `ready_title`, `ready_text`, `visit_title`, `visit_image`. For the
+Extra brief fields for it: `order_url`, `ready_title`, `ready_text`, `visit_title`, `visit_image`, `about`, `about_image`, `gallery` (list of
+photos), `email`, `instagram`, `contact_title`, `ordering` (true adds the live database menu and table-QR ordering). For the
 fly-through, ask for ONE steady 6 to 10 second clip that starts outside the entrance and moves inside
 (phone footage is fine). If I only have photos, say the hero will be weaker and ask before continuing.
+`webbuild theme photo1.jpg photo2.jpg ...` reads the cafe's own photos and prints a `theme` block (colours that pass
+contrast checks plus a font pairing) to paste into brief.json; use it instead of guessing a preset.
 Other businesses use the default template.
 
 Design direction (do this before writing the brief; it is what stops the site looking machine-made):
@@ -83,13 +86,17 @@ Also check:
 - Works without JavaScript (poster and content still visible) and with reduced motion
 - No broken links; phone and WhatsApp links are correct
 
-Optional: table ordering by QR (only if the business asks for it). Needs the cafe's own Supabase project,
-which I create or approve myself; never create or change a Supabase project without my explicit yes. Steps:
-`webbuild ordering init site --url https://<project>.supabase.co --key <PUBLISHABLE key>` copies the pages into
-`site/order/` and the SQL into `ordering-sql/` next to the site (never inside it). Only the publishable key may
-go in; the tool refuses secret keys. Then I run the two SQL files in order, add the staff user to `public.staff`,
-add menu items and tables, and print the table QR codes from `order/tables.html`. Say plainly that payment is
-confirmed by staff by hand, the orders list refreshes every few seconds, and guard should be run before real use.
+Optional: ordering and owner dashboard (only if the business asks for it). Set `"ordering": true` in the brief. It needs
+the cafe's own Supabase project, which I create or approve myself; never create or change a Supabase project without
+my explicit yes. Steps: build the site, then
+`webbuild ordering init site --url https://<project>.supabase.co --key <PUBLISHABLE key>` copies the pieces into
+`site/order/` and the four SQL files into `ordering-sql/` next to the site (never inside it). Only the publishable key
+may go in; the tool refuses secret keys. Then I run the SQL files 001 to 004 in order, create the owner's login and add
+that user to `public.staff`. The owner opens `order/staff.html` (Orders, Kitchen, Analytics, Menu, Tables, Settings),
+adds the menu, sets the UPI id in Settings and prints the table QR codes from the Tables tab. Customers can order only
+from a table QR (`?t=<table>&k=<secret>`); a plain visit shows a read-only menu that follows the dashboard. Say plainly
+that payment is confirmed by staff by hand, screens refresh every few seconds, and guard must be run before real use.
+Test locally first with `ordering/dev/run_e2e.sh` (throwaway Postgres, no Supabase).
 
 Step 5: finish. Tell me in plain English what you built, what is placeholder, what I must confirm
 with the client, and how to deploy (drag the `site` folder into Netlify, or `netlify deploy --dir site`).

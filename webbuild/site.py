@@ -206,6 +206,14 @@ addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',siz
 """
 
 
+ORDER_SCRIPTS = ('<script src="order/config.js"></script><script src="order/api.js"></script>'
+                 '<script src="order/qr.js"></script><script src="order/site.js"></script>')
+REVEAL = """(function(){var d=document.documentElement;if(!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+d.classList.add('js');var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}})},{rootMargin:'0px 0px -8% 0px'});
+document.querySelectorAll('.rv').forEach(function(n){io.observe(n)});
+})();"""
+
+
 def render(brief: dict) -> str:
     errs = validate(brief)
     if errs:
@@ -232,8 +240,8 @@ def render(brief: dict) -> str:
              f'<p class="about">{e(brief.get("about", ""))}</p></section>') if brief.get("about") else ""
     desc = e(brief.get("description") or brief.get("tagline") or brief["name"])
     if rest:
-        body = (restaurant.nav(brief) + restaurant.hero(brief, poster) + restaurant.ready(brief) + about
-                + restaurant.menu(brief) + _gallery(brief) + restaurant.find(brief))
+        body = (restaurant.nav(brief) + restaurant.hero(brief, poster) + restaurant.ready(brief) + restaurant.about(brief)
+                + restaurant.menu(brief) + restaurant.gallery(brief) + restaurant.find(brief) + restaurant.contact(brief))
     else:
         body = (f'<nav><b>{e(brief["name"])}</b><div>{nav}</div></nav>'
                 f'<header id="hero"><div id="stage">{poster}<canvas id="cv" aria-hidden="true"></canvas>'
@@ -246,10 +254,10 @@ def render(brief: dict) -> str:
 <meta name="description" content="{desc}"><meta name="theme-color" content="{e(t['bg'])}">
 <meta property="og:title" content="{e(brief['name'])}"><meta property="og:description" content="{desc}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?{fonts}&display=swap" rel="stylesheet">
-<style>{css}</style></head><body{' class="rest"' if rest else ''} id="top">
+{'<link rel="stylesheet" href="order/site.css">' if rest and brief.get('ordering') else ''}<style>{css}</style></head><body{' class="rest"' if rest else ''} id="top">
 {body}
 <footer>&copy; {e(brief['name'])}</footer>
-<script>{js}</script></body></html>
+<script>{js}</script>{ORDER_SCRIPTS if rest and brief.get('ordering') else ''}<script>{REVEAL if rest else ''}</script></body></html>
 """
 
 
