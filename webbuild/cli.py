@@ -55,7 +55,7 @@ def main(argv=None) -> int:
     th = sub.add_parser("theme", help="suggest colours and fonts from the cafe's photos (prints a theme block for brief.json)")
     th.add_argument("photos", nargs="+")
     s = sub.add_parser("setup", help="install the /webbuild command for Claude Code")
-    s.add_argument("--repo", default="adithyaraghavv/webtemp")
+    s.add_argument("--repo", default="adithyaraghavv/cafe-site-kit")
     s.add_argument("--home", help=argparse.SUPPRESS)
     a = p.parse_args(argv)
 

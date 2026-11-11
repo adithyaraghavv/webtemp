@@ -104,5 +104,5 @@ Do not deploy or publish anything unless I ask.
 """
 
 
-def command_md(repo: str = "adithyaraghavv/webtemp") -> str:
+def command_md(repo: str = "adithyaraghavv/cafe-site-kit") -> str:
     return COMMAND_MD.replace("{repo}", repo)

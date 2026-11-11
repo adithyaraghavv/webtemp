@@ -7,7 +7,7 @@ a filmed video as you scroll, about, menu, gallery, hours, map and call/WhatsApp
 ## Install (one time)
 Add this to the setup script of your Claude Code cloud environment (after the guard line):
 
-    pip install git+https://github.com/adithyaraghavv/webtemp.git && webbuild setup
+    pip install git+https://github.com/adithyaraghavv/cafe-site-kit.git && webbuild setup
 
 ## Use
 1. New session, environment with the setup script, any repo or an empty one.
