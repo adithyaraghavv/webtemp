@@ -1,7 +1,9 @@
-build/
-*.egg-info/
-__pycache__/
-site/
 
 # local test server uploads
+*.egg-info/
+__pycache__/
+build/
+guard.config.json
+guard_out/
 ordering/dev/.storage/
+site/
